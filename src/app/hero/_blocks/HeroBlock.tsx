@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { ArrowRight } from "lucide-react";
-import { bg1, bg5 } from "@/assets/images";
+import { bg5 } from "@/assets/images";
 import { Header } from "@/components/common/Header";
 
 /**
