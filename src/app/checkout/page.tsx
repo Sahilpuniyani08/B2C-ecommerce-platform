@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import Image from "next/image";
-import { ShoppingBag, ChevronRight, CreditCard, Banknote, Lock } from "lucide-react";
+import { ShoppingBag, ChevronRight, CreditCard, Banknote, Lock, MapPin, Truck, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { useCart } from "@/context/cart-context";
 import { useCreateOrder, useCreateRazorpayOrder, useVerifyRazorpayPayment } from "@/features/orders/mutations";
+import { useCheckDelivery } from "@/features/delivery-rules/mutations";
+import { getErrorMessage } from "@/lib/api-client";
 import { SITE_CONFIG } from "@/config/site";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -62,6 +64,10 @@ export default function CheckoutPage() {
   const { items, subtotal, totalItems, clearCart } = useCart();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Delivery check mutation hook
+  const checkDeliveryMutation = useCheckDelivery();
+  const [checkedPincode, setCheckedPincode] = useState<string | null>(null);
+
   const createOrder = useCreateOrder();
   const createRazorpayOrder = useCreateRazorpayOrder();
   const verifyPayment = useVerifyRazorpayPayment();
@@ -76,6 +82,37 @@ export default function CheckoutPage() {
   });
 
   const selectedPayment = watch("paymentMethod");
+  const currentPincode = watch("pincode");
+
+  // Reset delivery mutation if pincode changes after checking
+  const pincodeChanged = checkedPincode !== null && currentPincode !== checkedPincode;
+  if (pincodeChanged && (checkDeliveryMutation.isSuccess || checkDeliveryMutation.isError)) {
+    checkDeliveryMutation.reset();
+    setCheckedPincode(null);
+  }
+
+  // Derived state from mutation
+  const isChecking = checkDeliveryMutation.isPending;
+  const isPincodeMatched = checkedPincode === currentPincode;
+  const deliveryResult = checkDeliveryMutation.isSuccess && isPincodeMatched ? checkDeliveryMutation.data : null;
+  const isDeliveryVerified = !!deliveryResult?.available;
+  const deliveryCharge = deliveryResult?.deliveryCharge ?? 0;
+  const grandTotal = Number(subtotal) + Number(deliveryCharge);
+
+  const deliveryError =
+    checkDeliveryMutation.isError && isPincodeMatched
+      ? getErrorMessage(checkDeliveryMutation.error)
+      : null;
+
+  const handleCheckDelivery = useCallback(() => {
+    if (!currentPincode || !/^\d{6}$/.test(currentPincode)) {
+      toast.error("Please enter a valid 6-digit pincode");
+      return;
+    }
+
+    setCheckedPincode(currentPincode);
+    checkDeliveryMutation.mutate(currentPincode);
+  }, [currentPincode, checkDeliveryMutation]);
 
   if (items.length === 0) {
     return (
@@ -102,6 +139,12 @@ export default function CheckoutPage() {
   }));
 
   const onSubmit = async (data: CheckoutFormData) => {
+    // Prevent submission if delivery is not verified
+    if (!isDeliveryVerified) {
+      toast.error("Please check delivery availability for your pincode first.");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       if (data.paymentMethod === "COD") {
@@ -289,18 +332,73 @@ export default function CheckoutPage() {
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div>
                       <label htmlFor="pincode" className="block text-xs font-bold uppercase tracking-wider text-olive mb-2">Pincode *</label>
-                      <input
-                        id="pincode"
-                        {...register("pincode", {
-                          required: "Pincode is required",
-                          pattern: { value: /^\d{6}$/, message: "Pincode must be exactly 6 digits" },
-                        })}
-                        placeholder="335001"
-                        maxLength={6}
-                        className="w-full px-4 py-3 rounded-xl border border-[#e8e4dc] bg-[#faf8f5] text-sm text-[#0a0a0a] placeholder:text-[#a0988a] focus:outline-none focus:border-olive focus:bg-white transition-colors"
-                      />
+                      <div className="flex gap-2">
+                        <input
+                          id="pincode"
+                          {...register("pincode", {
+                            required: "Pincode is required",
+                            pattern: { value: /^\d{6}$/, message: "Pincode must be exactly 6 digits" },
+                          })}
+                          placeholder="335001"
+                          maxLength={6}
+                          className="flex-1 px-4 py-3 rounded-xl border border-[#e8e4dc] bg-[#faf8f5] text-sm text-[#0a0a0a] placeholder:text-[#a0988a] focus:outline-none focus:border-olive focus:bg-white transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCheckDelivery}
+                          disabled={isChecking}
+                          className="px-4 py-3 rounded-xl bg-olive text-white text-xs font-bold uppercase tracking-wider hover:bg-olive-dark transition-colors disabled:opacity-60 shrink-0 flex items-center gap-1.5 cursor-pointer"
+                        >
+                          {isChecking ? (
+                            <>
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              Checking
+                            </>
+                          ) : (
+                            <>
+                              <MapPin className="w-3.5 h-3.5" />
+                              Check
+                            </>
+                          )}
+                        </button>
+                      </div>
                       {errors.pincode && (
                         <p className="text-red-600 text-xs mt-1 font-medium">{errors.pincode.message}</p>
+                      )}
+
+                      {/* Delivery Check Result */}
+                      {isDeliveryVerified && deliveryResult && (
+                        <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded-xl animate-fade-up">
+                          <div className="flex items-center gap-2 mb-1">
+                            <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                            <p className="text-sm font-semibold text-emerald-700">Delivery Available!</p>
+                          </div>
+                          <div className="flex items-center gap-4 pl-6 text-xs text-emerald-600">
+                            <span className="flex items-center gap-1">
+                              <Truck className="w-3.5 h-3.5" />
+                              {deliveryResult.minDays}–{deliveryResult.maxDays} business days
+                            </span>
+                            <span className="font-bold">
+                              {deliveryResult.deliveryCharge === 0
+                                ? "Free Delivery"
+                                : `${SITE_CONFIG.currency}${deliveryResult.deliveryCharge} delivery`}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {deliveryError && (
+                        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl animate-fade-up">
+                          <div className="flex items-center gap-2">
+                            <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+                            <p className="text-sm font-semibold text-red-600">
+                              {deliveryError}
+                            </p>
+                          </div>
+                          <p className="text-xs text-red-400 mt-1 pl-6">
+                            Try a different pincode or contact us on WhatsApp for help.
+                          </p>
+                        </div>
                       )}
                     </div>
                     <div>
@@ -380,7 +478,7 @@ export default function CheckoutPage() {
             <div className="lg:col-span-1">
               <div className="bg-white rounded-3xl p-6 border border-[#e8e4dc] shadow-sm sticky top-24">
                 <h2 className="font-display font-black text-xl text-olive mb-6 pb-3 border-b border-[#e8e4dc]">
-                  Order Items
+                  Order Summary
                 </h2>
 
                 {/* Items preview */}
@@ -413,17 +511,47 @@ export default function CheckoutPage() {
                 <div className="border-t border-[#e8e4dc] pt-4 space-y-3 mb-6">
                   <div className="flex justify-between text-sm">
                     <span className="text-[#8a8070]">Subtotal ({totalItems} items)</span>
-                    <span className="font-bold text-[#0a0a0a]">{SITE_CONFIG.currency}{subtotal.toLocaleString("en-IN")}</span>
+                    <span className="font-bold text-[#0a0a0a]">{SITE_CONFIG.currency}{Number(subtotal).toLocaleString("en-IN")}</span>
                   </div>
+
                   <div className="flex justify-between text-sm">
                     <span className="text-[#8a8070]">Delivery Charge</span>
-                    <span className="text-emerald-700 font-bold text-xs uppercase">Checked at server</span>
+                    {isDeliveryVerified && deliveryResult ? (
+                      <span className={`font-bold text-sm ${deliveryResult.deliveryCharge === 0 ? "text-emerald-600" : "text-[#0a0a0a]"}`}>
+                        {deliveryResult.deliveryCharge === 0
+                          ? "FREE"
+                          : `${SITE_CONFIG.currency}${deliveryResult.deliveryCharge.toLocaleString("en-IN")}`}
+                      </span>
+                    ) : deliveryError ? (
+                      <span className="text-red-500 font-bold text-xs uppercase">Not Available</span>
+                    ) : (
+                      <span className="text-[#8a8070] text-xs italic">Check pincode ↑</span>
+                    )}
+                  </div>
+                  {/* Grand Total */}
+                  <div className="flex justify-between text-base font-bold border-t border-[#e8e4dc] pt-3 mt-3">
+                    <span className="text-[#0a0a0a]">Total</span>
+                    <span className="text-olive text-lg">
+                      {isDeliveryVerified
+                        ? `${SITE_CONFIG.currency}${grandTotal.toLocaleString("en-IN")}`
+                        : `${SITE_CONFIG.currency}${Number(subtotal).toLocaleString("en-IN")}`}
+                    </span>
                   </div>
                 </div>
 
+                {/* Delivery status notice */}
+                {!isDeliveryVerified && !isChecking && (
+                  <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+                    <p className="text-xs text-amber-700 font-medium flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      Enter your pincode and check delivery availability to place order
+                    </p>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !isDeliveryVerified}
                   className="w-full py-4 rounded-full bg-olive text-white text-xs font-bold uppercase tracking-wider hover:bg-coral transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed shadow-md cursor-pointer"
                 >
                   {isSubmitting ? (
@@ -431,6 +559,11 @@ export default function CheckoutPage() {
                       <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                       Processing Order...
                     </span>
+                  ) : !isDeliveryVerified ? (
+                    <>
+                      <MapPin className="w-4 h-4" />
+                      Check Delivery First
+                    </>
                   ) : (
                     <>
                       <Lock className="w-4 h-4" />

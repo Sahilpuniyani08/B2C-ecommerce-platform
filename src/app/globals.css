@@ -632,3 +632,19 @@ img {
 .timeline-connector-pending {
   background: #e5e3dc;
 }
+
+
+/* ─── WhatsApp Button Pulse ──────────────────────────────── */
+
+.whatsapp-pulse {
+  animation: whatsapp-glow 2s ease-in-out infinite;
+}
+
+@keyframes whatsapp-glow {
+  0%, 100% {
+    box-shadow: 0 4px 14px rgba(37, 211, 102, 0.3);
+  }
+  50% {
+    box-shadow: 0 4px 20px rgba(37, 211, 102, 0.5);
+  }
+}

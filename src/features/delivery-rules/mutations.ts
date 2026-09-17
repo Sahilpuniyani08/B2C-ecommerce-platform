@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { createDeliveryRule, updateDeliveryRule, deleteDeliveryRule } from "./api";
+import { createDeliveryRule, updateDeliveryRule, deleteDeliveryRule, checkDelivery } from "./api";
 import { deliveryRuleKeys } from "./queries";
 import type { CreateDeliveryRuleInput, UpdateDeliveryRuleInput } from "./types";
 import { getErrorMessage } from "@/lib/api-client";
@@ -41,3 +41,14 @@ export function useDeleteDeliveryRule() {
     onError: (err) => toast.error(getErrorMessage(err)),
   });
 }
+
+/** Public: check delivery availability by pincode */
+export function useCheckDelivery() {
+  return useMutation({
+    mutationFn: (pincode: string) => checkDelivery(pincode),
+    onError: () => {
+      // Don't toast — we show inline error in the checkout UI
+    },
+  });
+}
+

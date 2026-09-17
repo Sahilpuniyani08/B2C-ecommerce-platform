@@ -29,7 +29,20 @@ export async function findDeliveryRuleByPincode(pincode: string) {
 
   if (pincodeRule) return pincodeRule;
 
-  // Fallback: try a general rule (no pincode specified)
+  // Check if there are specific active pincode rules defined in the system
+  const hasSpecificPincodeRules = await prisma.deliveryRule.count({
+    where: {
+      pincode: { not: null },
+      isActive: true,
+    },
+  });
+
+  // If specific pincode rules exist, unlisted pincodes are NOT available
+  if (hasSpecificPincodeRules > 0) {
+    return null;
+  }
+
+  // Fallback: try a general rule (no pincode specified) if no specific pincodes exist
   const generalRule = await prisma.deliveryRule.findFirst({
     where: {
       pincode: null,

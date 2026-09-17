@@ -40,6 +40,7 @@ export const SITE_CONFIG = {
     help: [
       { label: "Track Order", href: "/track-order" },
       { label: "Cancel Order", href: "/track-order" },
+      { label: "FAQs", href: "/faqs" },
       { label: "Contact Us", href: "mailto:hello@dripdrop.in" },
     ],
     legal: [

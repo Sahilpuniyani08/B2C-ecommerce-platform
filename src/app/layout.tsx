@@ -3,6 +3,7 @@ import "./globals.css";
 import { Providers } from "@/app/providers";
 import { SITE_CONFIG } from "@/config/site";
 import { CartDrawer } from "@/components/common/CartDrawer";
+import { WhatsAppButton } from "@/components/common/WhatsAppButton";
 import { StoreLayoutWrapper } from "@/components/common/StoreLayoutWrapper";
 
 export const metadata: Metadata = {
@@ -46,6 +47,7 @@ export default function RootLayout({
         <Providers>
           <StoreLayoutWrapper>{children}</StoreLayoutWrapper>
           <CartDrawer />
+          <WhatsAppButton />
         </Providers>
       </body>
     </html>

@@ -27,3 +27,16 @@ export async function updateDeliveryRule(id: string, input: UpdateDeliveryRuleIn
 export async function deleteDeliveryRule(id: string): Promise<void> {
   await apiClient.delete(`/delivery-rules/${id}`);
 }
+
+/** Public: check delivery availability by pincode */
+export interface DeliveryCheckResult {
+  available: boolean;
+  deliveryCharge: number;
+  minDays: number;
+  maxDays: number;
+}
+
+export async function checkDelivery(pincode: string): Promise<DeliveryCheckResult> {
+  const res = await apiClient.post<ApiResponse<DeliveryCheckResult>>("/delivery-rules/check", { pincode });
+  return res.data.data;
+}
