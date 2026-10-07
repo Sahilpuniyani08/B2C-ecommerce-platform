@@ -3,42 +3,45 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import useEmblaCarousel from "embla-carousel-react";
+import Autoplay from "embla-carousel-autoplay";
 import { BannerSliderSkeleton } from "@/components/common/Skeleton";
 import { useBanners } from "@/features/banners/queries";
 import type { Banner } from "@/features/banners/types";
 import { cn } from "@/lib/utils";
 
-/**
- * BannerSlider — Auto-playing banner carousel with navigation arrows & dots
- * Fetches active banners from the backend
- */
+
 export function BannerSlider() {
   const { data: banners, isLoading } = useBanners(true);
-  const [activeIndex, setActiveIndex] = useState(0);
-
   const activeBanners = banners?.filter((b) => b.isActive) ?? [];
 
-  const next = useCallback(() => {
-    setActiveIndex((i) => (i + 1) % (activeBanners.length || 1));
-  }, [activeBanners.length]);
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: activeBanners.length > 1 },
+    [Autoplay({ delay: 4500, stopOnInteraction: false })]
+  );
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const prev = useCallback(() => {
-    setActiveIndex((i) =>
-      i === 0 ? (activeBanners.length - 1 || 0) : i - 1
-    );
-  }, [activeBanners.length]);
+  const onSelect = useCallback(() => {
+    if (!emblaApi) return;
+    setSelectedIndex(emblaApi.selectedScrollSnap());
+  }, [emblaApi]);
 
-  // Auto-play
   useEffect(() => {
-    if (activeBanners.length <= 1) return;
-    const timer = setInterval(next, 4500);
-    return () => clearInterval(timer);
-  }, [activeBanners.length, next]);
+    if (!emblaApi) return;
+    onSelect();
+    emblaApi.on("select", onSelect);
+    emblaApi.on("reInit", onSelect);
+  }, [emblaApi, onSelect]);
+
+  const scrollTo = useCallback(
+    (index: number) => emblaApi && emblaApi.scrollTo(index),
+    [emblaApi]
+  );
 
   if (isLoading) {
     return (
-      <section className="p-2 ">
+      <section className="p-2">
         <BannerSliderSkeleton />
       </section>
     );
@@ -46,85 +49,81 @@ export function BannerSlider() {
 
   if (activeBanners.length === 0) return null;
 
-  const banner = activeBanners[activeIndex];
-
   return (
-    <section
-      className="p-2"
-      aria-label="Promotional banners"
-    >
-      <div className="relative rounded-2xl ring-[1.5px] ring-olive/70 overflow-hidden bg-[#0a0a0a] aspect-16/5  height-[50vh] group">
-        {/* Background image */}
-        <div className="absolute inset-0">
-          <Image
-            src={banner.imageUrl}
-            alt={banner.title}
-            fill
-            priority={activeIndex === 0}
-            className="object-cover transition-opacity duration-500"
-            sizes="(max-width: 1280px) 100vw, 1280px"
-          />
-          <div className="absolute inset-0 bg-linear-to-tr  from-black/70 via-black/20 to-transparent" />
-        </div>
+    <section className="p-2" aria-label="Promotional banners">
+      <div className="relative rounded-2xl ring-[1.5px] ring-olive/70 overflow-hidden bg-[#0a0a0a]">
+        {/* Carousel Viewport */}
+        <div className="overflow-hidden cursor-grab active:cursor-grabbing" ref={emblaRef}>
+          <div className="flex">
+            {activeBanners.map((banner, index) => {
+              const bannerUrl = getBannerUrl(banner);
+              const SlideContent = (
+                <div className="relative w-full min-h-[220px] aspect-2/1 md:aspect-16/5 group select-none">
+                  {/* Background image */}
+                  <div className="absolute inset-0">
+                    <Image
+                      src={banner.imageUrl}
+                      alt={banner.title}
+                      fill
+                      priority={index === 0}
+                      className="object-cover transition-transform duration-700 group-hover:scale-105"
+                      sizes="(max-width: 1280px) 100vw, 1280px"
+                    />
+                    <div className="absolute inset-0 bg-linear-to-tr from-black/75 via-black/30 to-transparent" />
+                  </div>
 
-        {/* Content */}
-        <div className="relative z-10 flex flex-col justify-end pb-4 h-full px-8 sm:px-12 max-w-xl">
-          <h2 className="font-display font-bold text-lg sm:text-3xl lg:text-2xl text-beige leading-tight mb-2">
-            {banner.title}
-          </h2>
-          {banner.subtitle && (
-            <p className="text-beige text-sm sm:text-base mb-2 leading-relaxed">
-              {banner.subtitle}
-            </p>
-          )}
-          {banner.buttonText && (
-            <BannerLink banner={banner}>
-              <span className="inline-flex items-center gap-2 px-4 py-2 md:px-6 md:py-2.5 rounded-full bg-olive text-beige text-sm md:text-base font-bold hover:bg-beige hover:text-olive transition-all duration-300 w-fit">
-                {banner.buttonText}
-                <ArrowRight className="w-3.5 h-3.5" />
-              </span>
-            </BannerLink>
-          )}
-        </div>
+                  {/* Content */}
+                  <div className="relative z-10 flex flex-col justify-end pb-6 md:pb-8 h-full px-6 sm:px-12 max-w-3xl">
+                    <h2 className="font-display font-medium text-lg sm:text-3xl lg:text-5xl text-beige leading-tight mb-2 drop-shadow-sm">
+                      {banner.title}
+                    </h2>
+                    {banner.subtitle && (
+                      <p className="text-beige/90 text-sm sm:text-base font-semibold  leading-relaxed drop-shadow-sm">
+                        {banner.subtitle}
+                      </p>
+                    )}
+                    {/* {banner.buttonText && (
+                      <span className="inline-flex items-center gap-2 px-4 py-2 md:px-6 md:py-2.5 rounded-full bg-olive text-beige text-sm md:text-base font-bold group-hover:bg-beige group-hover:text-olive transition-all duration-300 w-fit">
+                        {banner.buttonText}
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </span>
+                    )} */}
+                  </div>
+                </div>
+              );
 
-        {/* Arrows */}
-        {activeBanners.length > 1 && (
-          <div className="absolute right-4 bottom-4 flex gap-2">
-            <button
-              onClick={prev}
-              aria-label="Previous banner"
-              className={cn(
-                "w-9 h-9 md:w-12 md:h-12 rounded-full flex items-center justify-center",
-                "bg-olive text-beige hover:bg-olive/60 hover:text-beige cursor-pointer transition-colors"
-              )}
-            >
-              <ChevronLeft className="w-4 h-4 md:w-6 md:h-6" />
-            </button>
-            <button
-              onClick={next}
-              aria-label="Next banner"
-              className={cn(
-                "w-9 h-9 md:w-12 md:h-12 rounded-full flex items-center justify-center",
-                "bg-olive text-beige hover:bg-olive/60 hover:text-beige cursor-pointer transition-colors"
-              )}
-            >
-              <ChevronRight className="w-4 h-4 md:w-6 md:h-6" />
-            </button>
+              return (
+                <div
+                  key={banner.id}
+                  className="flex-[0_0_100%] min-w-0 relative"
+                >
+                  {bannerUrl ? (
+                    <Link href={bannerUrl} className="block w-full h-full">
+                      {SlideContent}
+                    </Link>
+                  ) : (
+                    SlideContent
+                  )}
+                </div>
+              );
+            })}
           </div>
-        )}
+        </div>
 
-        {/* Dots */}
+        {/* Dots Pagination */}
         {activeBanners.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 z-20">
             {activeBanners.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setActiveIndex(i)}
+                onClick={() => scrollTo(i)}
                 aria-label={`Go to slide ${i + 1}`}
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === activeIndex
-                  ? "w-6 bg-beige border border-olive"
-                  : "w-1.5 bg-white/40 hover:bg-white/60"
-                  }`}
+                className={cn(
+                  "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
+                  i === selectedIndex
+                    ? "w-6 bg-beige border border-olive"
+                    : "w-1.5 bg-white/40 hover:bg-white/60"
+                )}
               />
             ))}
           </div>
@@ -134,19 +133,21 @@ export function BannerSlider() {
   );
 }
 
-/** Navigate to category or product based on banner links */
-function BannerLink({
-  banner,
-  children,
-}: {
-  banner: Banner;
-  children: React.ReactNode;
-}) {
+/** Get navigation URL using category/product slug instead of ID */
+function getBannerUrl(banner: Banner): string | null {
+  if (banner.category?.slug) {
+    return `/category/${banner.category.slug}`;
+  }
+  if (banner.product?.slug) {
+    return `/product/${banner.product.slug}`;
+  }
+  // Fallbacks if slug is missing
   if (banner.categoryId) {
-    return <Link href={`/category/${banner.categoryId}`}>{children}</Link>;
+    return `/category/${banner.categoryId}`;
   }
   if (banner.productId) {
-    return <Link href={`/product/${banner.productId}`}>{children}</Link>;
+    return `/product/${banner.productId}`;
   }
-  return <span>{children}</span>;
+  return null;
 }
+

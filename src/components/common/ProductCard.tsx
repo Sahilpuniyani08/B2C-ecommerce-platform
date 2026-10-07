@@ -115,10 +115,10 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {/* Product Details */}
-        <div className="space-y-1 flex flex-col justify-between md:flex-row px-2 pb-2">
+        <div className="space-y-1 flex flex-col justify-between lg:flex-row px-2 pb-2">
           <div>
             {product.category?.name && (
-              <p className="text-[11px] font-bold uppercase tracking-widest text-olive/70">
+              <p className="text-[0.6875rem] font-bold uppercase tracking-widest text-olive/70">
                 {product.category.name}
               </p>
             )}

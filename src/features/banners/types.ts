@@ -6,6 +6,16 @@ export interface Banner {
   buttonText?: string | null;
   categoryId?: string | null;
   productId?: string | null;
+  category?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
+  product?: {
+    id: string;
+    name: string;
+    slug: string;
+  } | null;
   sortOrder: number;
   isActive: boolean;
   createdAt: string;

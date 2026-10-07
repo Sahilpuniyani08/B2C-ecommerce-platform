@@ -47,11 +47,11 @@ const TREND_ITEMS: TrendItem[] = [
 export function TrendsBlock() {
   const { data: categories, isLoading } = useCategories(true);
 
-  console.log(categories);
+
 
 
   return (
-    <section id="trends" className="max-w-7xl mx-auto px-2 py-6 md:py-12" aria-label="Today's trends">
+    <section id="trends" className="max-w-7xl mx-auto px-8 py-6 md:py-12" aria-label="Today's trends">
       {/* Header matching Reference Image 3 */}
       <div className="flex items-center justify-between mb-8">
         <h2 className="font-display font-black text-3xl sm:text-5xl text-olive tracking-tight">
@@ -69,7 +69,7 @@ export function TrendsBlock() {
       {
         isLoading ?
           (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {Array.from({ length: 3 }).map((_, index) => {
                 return (
                   <div key={index} className="w-full h-full">
@@ -80,16 +80,16 @@ export function TrendsBlock() {
 
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-2 ">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 ">
 
               {categories?.map((item) => (
                 <Link
                   key={item.id}
                   href={`/shop?category=${item.slug}`}
-                  className="group relative rounded-xl ring-2 ring-olive overflow-hidden aspect-3/4 bg-biege  shadow-sm shadow-beige hover:shadow-xl transition-all duration-300 flex flex-col justify-end "
+                  className="group relative rounded-xl overflow-hidden aspect-3/4 bg-biege/20 ring-1 ring-beige shadow-sm shadow-beige hover:shadow-xl transition-all duration-300 flex flex-col justify-end "
                 >
+                  <div className="w-full h-full absolute inset-0 bg-linear-to-t from-olive/40 from-2  to-transparent/10  z-10" />
                   <div className="w-full h-full absolute inset-0">
-
                     <ProgressiveBlur />
                   </div>
                   {/* Background Image */}
